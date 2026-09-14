@@ -1,5 +1,3 @@
-//const routines = [];
-
 let routineIdCounter = 0;
 
 function Routines(name, series, repetitionsPerSet, rest) {
@@ -80,17 +78,3 @@ Routines.prototype.calculateDuration = function calculateDuration() {
 
     return durationRoutine;
 }
-
-
-// const objeto1 = createRoutinesObject('Sentadilla', 2, 10, 15)
-// console.log(objeto1);
-const rutina1 = new Routines('Sentadilla', 2, 10, 35)
-console.log(rutina1);
-rutina1.changeCountSeries(4);
-console.log(rutina1.calculateDuration())
-console.log(rutina1);
-
-const rutina2 = new Routines('Salto en estrella', 2, 30, 45)
-console.log(rutina2);
-
-console.log(rutina1.calculateDuration === rutina2.calculateDuration)
