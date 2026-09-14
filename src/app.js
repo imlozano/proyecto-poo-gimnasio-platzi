@@ -90,14 +90,15 @@ Routine.prototype.changeRest = function changeRest(newValue) {
 }
 
 Routine.prototype.calculateDuration = function calculateDuration() {
-    const repetitions = this.repetitionsPerSet
-    const durationPerSet = this.durationPerSet
-    const calculateExecution = repetitions * durationPerSet;
-    const series = this.series
-    const calculateEffort = series * calculateExecution;
-    const rest = this.rest;
-    const calculateTotalRest = (series - 1) * rest
-    const durationRoutine = calculateEffort + calculateTotalRest
+    // const repetitions = this.repetitionsPerSet
+    // const durationPerSet = this.durationPerSet
+    // const calculateExecution = repetitions * durationPerSet;
+    // const series = this.series
+    // const calculateEffort = series * calculateExecution;
+    // const rest = this.rest;
+    // const calculateTotalRest = (series - 1) * rest
+    // const durationRoutine = calculateEffort + calculateTotalRest
 
-    return durationRoutine;
+    // return durationRoutine;
+    return ((this.repetitionsPerSet * this.durationPerSet) * this.series) + ((this.series - 1) * this.rest);
 }
