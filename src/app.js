@@ -104,3 +104,169 @@ Routine.prototype.calculateDuration = function calculateDuration() {
     // return durationRoutine;
     return ((this.repetitionsPerSet * this.durationPerSet) * this.series) + ((this.series - 1) * this.rest);
 }
+
+function showMessage(message, type = 'success') {
+    const box = document.getElementById('messageBox');
+    box.textContent = message;
+    box.className = `message-box ${type}`;
+
+    setTimeout(() => {
+        box.classList.add('hidden');
+    }, 3000)
+}
+
+
+function addRoutine(name, series, repetitionsPerSet, rest) {
+
+
+    if (!name || name.trim().length === 0) {
+        showMessage('El nombre de la rutina es obligatorio', 'error');
+        console.log('El nombre de la rutina es obligatorio')
+        return null;
+    }
+
+    try {
+        const routine = new Routine(name.trim(), series, repetitionsPerSet, rest);
+        routines.push(routine);
+        return routine;
+    } catch (error) {
+        showMessage(error.message, 'error');
+        console.log(error.message)
+        return null;
+    }
+}
+
+function transfordurationRutine(duration){
+    
+    // Complejo y poco mantenible
+    // const minutes = duration / 60;
+    // const minuteAndSeconds = minutes.toString().split('.');
+    
+    // const minute = Number(minuteAndSeconds[0]);
+    // const secondString = minuteAndSeconds[1];
+    // const baseTen = 10 ** secondString.length; // Esto es para añadir los 0 antes de la coma.
+    // const zerosBeforeTheDecimalPoint =  Number(secondString) / baseTen; 
+    // const seconds = Math.floor(zerosBeforeTheDecimalPoint * 60);
+
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+
+    debugger;
+    return `${minutes} m : ${seconds} s`
+
+
+
+
+
+
+}
+
+function renderRoutines() {
+    const routinesTable = document.getElementById('routinesTable');
+ 
+
+    if (routines.length === 0) {
+        routinesTable.innerHTML =
+            '<p class="empty-state">No hay rutinas. Haz clic en "Crear Rutina" para comenzar..</p>';
+        return;
+    }
+
+    const rows = routines
+        .map((routine) => {
+            return `
+        <tr>
+            <th scope="row">${routine.name}</th>
+            <td>${routine.series}</td>
+            <td>${routine.repetitionsPerSet}</td>
+            <td>${routine.rest} s</td>
+            <td>${transfordurationRutine(routine.durationRoutine)}</td>
+        </tr>
+            `
+        })
+        .join('');
+
+    routinesTable.innerHTML = `
+    <table class="routine-table">
+            <thead>
+                <tr>
+                    <th scope="col">Ejercicio</th>
+                    <th scope="col">Series</th>
+                    <th scope="col">Repeticiones</th>
+                    <th scope="col">Descanso</th>
+                    <th scope="col">Duración</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+    `;
+
+
+}
+
+function setupModalListener() {
+    const modal = document.getElementById('createRoutineModal');
+    const btnAbrir = document.getElementById('buttonCreateRutine');
+
+    // Abre el diálogo en formato Modal (bloquea el fondo)
+    btnAbrir.addEventListener('click', () => {
+        modal.showModal();
+    });
+
+}
+
+function closeModal() {
+    const modal = document.getElementById('createRoutineModal');
+    const btnCerrar = document.getElementById('btnCerrar');
+
+    // Abre el diálogo en formato Modal (bloquea el fondo)
+    btnCerrar.addEventListener('click', () => {
+
+        modal.close();
+    });
+
+}
+
+function submitForm() {
+    const form = document.getElementById('formRoutine');
+    const modal = document.getElementById('createRoutineModal');
+
+    form.addEventListener('submit', function (event) {
+
+        event.preventDefault();
+
+        const data = new FormData(form);
+
+        const name = data.get('name');
+        const series = Number(data.get('series'));
+        const repetitions = Number(data.get('repetitions'));
+        const rest = Number(data.get('rest'));
+
+        const routine = addRoutine(name, series, repetitions, rest);
+        if (routine) {
+            showMessage(`Rutina "${routine.name}" creado exitosamente`, 'success');
+            
+            renderRoutines();
+            
+            console.log('Rutina creado exitosamente');
+            
+            form.reset()
+
+            modal.close();
+
+        }
+    })
+}
+
+function initApp() {
+    setupModalListener();
+    submitForm();
+    closeModal();
+    
+
+
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
