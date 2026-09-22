@@ -1,5 +1,7 @@
 let routineIdCounter = 0;
 
+const routines = [];
+
 const ROUTINE_VALIDATION = {
     name: {
         minLength: 3,
