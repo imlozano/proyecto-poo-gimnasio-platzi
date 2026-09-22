@@ -17,6 +17,8 @@ body {
 }
 
 .app {
+  display: flex;
+  flex-direction: column;
   width: min(900px, 100%);
   min-height: 100vh;
   margin: 0 auto;
