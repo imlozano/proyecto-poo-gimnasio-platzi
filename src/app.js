@@ -151,14 +151,8 @@ function transfordurationRutine(duration){
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
 
-    debugger;
+    //debugger;
     return `${minutes} m : ${seconds} s`
-
-
-
-
-
-
 }
 
 function renderRoutines() {
@@ -254,7 +248,9 @@ function submitForm() {
             
             form.reset()
 
-            modal.close();
+            setTimeout(() => {
+                modal.close();
+            }, 1000);
 
         }
     })
