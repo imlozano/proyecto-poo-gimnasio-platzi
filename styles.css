@@ -94,6 +94,11 @@ body {
   line-height: 1;
 }
 
+.routines-table {
+  padding: 1.5rem 2rem;
+  flex: 1;
+}
+
 .routine-table {
   width: 100%;
   border-collapse: separate;
@@ -118,7 +123,7 @@ body {
 
 .routine-table th,
 .routine-table td {
-  padding: 15px 18px;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e5e5;
   color: #555;
   font-size: 0.95rem;
@@ -138,7 +143,7 @@ body {
 .routine-table tbody th[scope="row"] {
   color: #333;
   font-weight: 500;
-  text-align: left;
+  text-align: center;
 }
 
 .routine-table tbody tr:last-child th,
@@ -159,6 +164,7 @@ body {
   color: #999;
   font-size: 0.85rem;
   text-align: center;
+  width: 100%;
 }
 
 @media (max-width: 700px) {
