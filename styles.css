@@ -206,15 +206,12 @@ body {
     padding-right: 18px;
   }
 
-  .routine-table {
-    display: block;
+  .routines-table {
     overflow-x: auto;
   }
 
-  .routine-table thead,
-  .routine-table tbody,
-  .routine-table tr {
-    width: 100%;
+  .routine-table {
+    min-width: 600px;
   }
 
   .routine-table th,
