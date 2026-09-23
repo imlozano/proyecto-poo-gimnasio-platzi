@@ -115,12 +115,24 @@ Routine.prototype.calculateDuration = function calculateDuration() {
     return ((this.repetitionsPerSet * this.durationPerSet) * this.series) + ((this.series - 1) * this.rest);
 }
 
+let messageTimeout;
+
 function showMessage(message, type = 'success') {
     const box = document.getElementById('messageBox');
+
+    const validTypes = ['success', 'error'];
+
+    if (!validTypes.includes(type)) {
+        type = 'success';
+    }
+
+    clearTimeout(messageTimeout);
+    
+
     box.textContent = message;
     box.className = `message-box ${type}`;
 
-    setTimeout(() => {
+    messageTimeout = setTimeout(() => {
         box.classList.add('hidden');
     }, 3000)
 }
@@ -146,12 +158,12 @@ function addRoutine(name, series, repetitionsPerSet, rest) {
     }
 }
 
-function transfordurationRutine(duration){
-    
+function transfordurationRutine(duration) {
+
     // Complejo y poco mantenible
     // const minutes = duration / 60;
     // const minuteAndSeconds = minutes.toString().split('.');
-    
+
     // const minute = Number(minuteAndSeconds[0]);
     // const secondString = minuteAndSeconds[1];
     // const baseTen = 10 ** secondString.length; // Esto es para añadir los 0 antes de la coma.
@@ -251,11 +263,11 @@ function submitForm() {
         const routine = addRoutine(name, series, repetitions, rest);
         if (routine) {
             showMessage(`Rutina "${routine.name}" creado exitosamente`, 'success');
-            
+
             renderRoutines();
-            
+
             console.log('Rutina creado exitosamente');
-            
+
             form.reset()
 
             setTimeout(() => {
@@ -270,7 +282,7 @@ function initApp() {
     setupModalListener();
     submitForm();
     closeModal();
-    
+
 
 
 }
