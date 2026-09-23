@@ -25,22 +25,32 @@ const ROUTINE_VALIDATION = {
 };
 
 function validateName(name) {
-    if (name.trim().length < ROUTINE_VALIDATION.name.minLength) {
+    if (typeof name !== 'string' || name.trim().length < ROUTINE_VALIDATION.name.minLength) {
         throw new Error(ROUTINE_VALIDATION.name.errorMessage);
     }
 }
 
-function validateRange(value, rule) {
-    if (value < rule.min || value > rule.max) {
+// function validateRange(value, rule) {
+//     if (value < rule.min || value > rule.max) {
+//         throw new Error(rule.errorMessage);
+//     }
+// }
+
+function validateInteger(value, rule) {
+    if (!Number.isInteger(value) || value < rule.min || value > rule.max) {
         throw new Error(rule.errorMessage);
     }
 }
 
 function validateRoutine(name, series, repetitionsPerSet, rest) {
     validateName(name);
-    validateRange(series, ROUTINE_VALIDATION.series);
-    validateRange(repetitionsPerSet, ROUTINE_VALIDATION.repetitionsPerSet);
-    validateRange(rest, ROUTINE_VALIDATION.rest);
+    // validateRange(series, ROUTINE_VALIDATION.series);
+    // validateRange(repetitionsPerSet, ROUTINE_VALIDATION.repetitionsPerSet);
+    // validateRange(rest, ROUTINE_VALIDATION.rest);
+
+    validateInteger(series, ROUTINE_VALIDATION.series);
+    validateInteger(repetitionsPerSet, ROUTINE_VALIDATION.repetitionsPerSet);
+    validateInteger(rest, ROUTINE_VALIDATION.rest);
 }
 
 function Routine(name, series, repetitionsPerSet, rest) {
@@ -49,7 +59,7 @@ function Routine(name, series, repetitionsPerSet, rest) {
 
     // Propiedades
     this.id = ++routineIdCounter;
-    this.name = name;
+    this.name = name.trim();
     this.durationPerSet = 5;
     this.series = series;
     this.repetitionsPerSet = repetitionsPerSet;
@@ -68,26 +78,26 @@ Routine.prototype.rename = function rename(newName) {
 }
 
 Routine.prototype.changeCountSeries = function changeCountSeries(newValue) {
-    validateRange(newValue, ROUTINE_VALIDATION.series);
+    validateInteger(newValue, ROUTINE_VALIDATION.series);
 
     this.series = newValue;
-    this.durationRoutine = this.calculateDuration()
+    this.durationRoutine = this.calculateDuration();
 
 }
 
 Routine.prototype.changeRepetitionsPerSet = function changeRepetitionsPerSet(newValue) {
-    validateRange(newValue, ROUTINE_VALIDATION.repetitionsPerSet);
+    validateInteger(newValue, ROUTINE_VALIDATION.repetitionsPerSet);
 
     this.repetitionsPerSet = newValue;
-    this.durationRoutine = this.calculateDuration()
+    this.durationRoutine = this.calculateDuration();
 
 }
 
 Routine.prototype.changeRest = function changeRest(newValue) {
-    validateRange(newValue, ROUTINE_VALIDATION.rest);
+    validateInteger(newValue, ROUTINE_VALIDATION.rest);
 
     this.rest = newValue;
-    this.durationRoutine = this.calculateDuration()
+    this.durationRoutine = this.calculateDuration();
 
 }
 
@@ -119,14 +129,14 @@ function showMessage(message, type = 'success') {
 function addRoutine(name, series, repetitionsPerSet, rest) {
 
 
-    if (!name || name.trim().length === 0) {
+    if (typeof name !== 'string' || !name || name.trim().length === 0) {
         showMessage('El nombre de la rutina es obligatorio', 'error');
         console.log('El nombre de la rutina es obligatorio')
         return null;
     }
 
     try {
-        const routine = new Routine(name.trim(), series, repetitionsPerSet, rest);
+        const routine = new Routine(name, series, repetitionsPerSet, rest);
         routines.push(routine);
         return routine;
     } catch (error) {
