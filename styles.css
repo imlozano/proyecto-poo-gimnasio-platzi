@@ -274,13 +274,14 @@ body {
 }
 
 .modal__input:focus {
-  border-color: #333; /* El borde se oscurece al hacer clic */
+  border-color: #333;
+  /* El borde se oscurece al hacer clic */
 }
 
 .modal__actions {
   display: flex;
   justify-content: space-between;
-    gap: 12px;
+  gap: 12px;
   margin-top: 8px;
 }
 
@@ -319,11 +320,12 @@ body {
     opacity: 1;
   }
 } */
- @keyframes slideDown {
+@keyframes slideDown {
   from {
     transform: translateY(-50px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;

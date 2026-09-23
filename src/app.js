@@ -30,12 +30,6 @@ function validateName(name) {
     }
 }
 
-// function validateRange(value, rule) {
-//     if (value < rule.min || value > rule.max) {
-//         throw new Error(rule.errorMessage);
-//     }
-// }
-
 function validateInteger(value, rule) {
     if (!Number.isInteger(value) || value < rule.min || value > rule.max) {
         throw new Error(rule.errorMessage);
@@ -44,9 +38,7 @@ function validateInteger(value, rule) {
 
 function validateRoutine(name, series, repetitionsPerSet, rest) {
     validateName(name);
-    // validateRange(series, ROUTINE_VALIDATION.series);
-    // validateRange(repetitionsPerSet, ROUTINE_VALIDATION.repetitionsPerSet);
-    // validateRange(rest, ROUTINE_VALIDATION.rest);
+
 
     validateInteger(series, ROUTINE_VALIDATION.series);
     validateInteger(repetitionsPerSet, ROUTINE_VALIDATION.repetitionsPerSet);
@@ -102,16 +94,7 @@ Routine.prototype.changeRest = function changeRest(newValue) {
 }
 
 Routine.prototype.calculateDuration = function calculateDuration() {
-    // const repetitions = this.repetitionsPerSet
-    // const durationPerSet = this.durationPerSet
-    // const calculateExecution = repetitions * durationPerSet;
-    // const series = this.series
-    // const calculateEffort = series * calculateExecution;
-    // const rest = this.rest;
-    // const calculateTotalRest = (series - 1) * rest
-    // const durationRoutine = calculateEffort + calculateTotalRest
 
-    // return durationRoutine;
     return ((this.repetitionsPerSet * this.durationPerSet) * this.series) + ((this.series - 1) * this.rest);
 }
 
@@ -159,15 +142,6 @@ function addRoutine(name, series, repetitionsPerSet, rest) {
 }
 
 function transfordurationRutine(duration) {
-    // Complejo y poco mantenible
-    // const minutes = duration / 60;
-    // const minuteAndSeconds = minutes.toString().split('.');
-
-    // const minute = Number(minuteAndSeconds[0]);
-    // const secondString = minuteAndSeconds[1];
-    // const baseTen = 10 ** secondString.length; // Esto es para añadir los 0 antes de la coma.
-    // const zerosBeforeTheDecimalPoint =  Number(secondString) / baseTen; 
-    // const seconds = Math.floor(zerosBeforeTheDecimalPoint * 60);
 
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
@@ -181,9 +155,7 @@ function renderRoutines() {
 
 
     if (routines.length === 0) {
-        // routinesTable.innerHTML =
-        //     '<p class="empty-state">No hay rutinas. Haz clic en "Crear Rutina" para comenzar..</p>';
-        // return;
+       
         const emptyState = document.createElement('p');
         emptyState.className = 'empty-state'
         emptyState.textContent = 'No hay rutinas. Haz clic en "Crear Rutina" para comenzar.';
@@ -253,40 +225,6 @@ function renderRoutines() {
 
     routinesTable.replaceChildren(table);
 
-
-
-    // A la antigua
-    // const rows = routines
-    //     .map((routine) => {
-    //         return `
-    //     <tr>
-    //         <th scope="row">${routine.name}</th>
-    //         <td>${routine.series}</td>
-    //         <td>${routine.repetitionsPerSet}</td>
-    //         <td>${routine.rest} s</td>
-    //         <td>${transfordurationRutine(routine.durationRoutine)}</td>
-    //     </tr>
-    //         `
-    //     })
-    //     .join('');
-
-    // routinesTable.innerHTML = `
-    // <table class="routine-table">
-    //         <thead>
-    //             <tr>
-    //                 <th scope="col">Ejercicio</th>
-    //                 <th scope="col">Series</th>
-    //                 <th scope="col">Repeticiones</th>
-    //                 <th scope="col">Descanso</th>
-    //                 <th scope="col">Duración</th>
-    //             </tr>
-    //         </thead>
-
-    //         <tbody>
-    //             ${rows}
-    //         </tbody>
-    //     </table>
-    // `;
 }
 
 function setupModalListener() {
@@ -304,7 +242,7 @@ function closeModal() {
     const modal = document.getElementById('createRoutineModal');
     const btnCerrar = document.getElementById('btnCerrar');
 
-    // Abre el diálogo en formato Modal (bloquea el fondo)
+    // Cierra el diálogo modal
     btnCerrar.addEventListener('click', () => {
 
         modal.close();
@@ -349,7 +287,7 @@ function initApp() {
     setupModalListener();
     submitForm();
     closeModal();
-    
+
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
