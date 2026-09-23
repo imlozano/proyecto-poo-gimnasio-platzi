@@ -178,47 +178,115 @@ function transfordurationRutine(duration) {
 
 function renderRoutines() {
     const routinesTable = document.getElementById('routinesTable');
- 
+
 
     if (routines.length === 0) {
-        routinesTable.innerHTML =
-            '<p class="empty-state">No hay rutinas. Haz clic en "Crear Rutina" para comenzar..</p>';
+        // routinesTable.innerHTML =
+        //     '<p class="empty-state">No hay rutinas. Haz clic en "Crear Rutina" para comenzar..</p>';
+        // return;
+        const emptyState = document.createElement('p');
+        emptyState.className = 'empty-state'
+        emptyState.textContent = 'No hay rutinas. Haz clic en "Crear Rutina" para comenzar.';
+        routinesTable.replaceChildren(emptyState);
+
         return;
     }
 
-    const rows = routines
-        .map((routine) => {
-            return `
-        <tr>
-            <th scope="row">${routine.name}</th>
-            <td>${routine.series}</td>
-            <td>${routine.repetitionsPerSet}</td>
-            <td>${routine.rest} s</td>
-            <td>${transfordurationRutine(routine.durationRoutine)}</td>
-        </tr>
-            `
-        })
-        .join('');
+    const table = document.createElement('table');
+    table.className = 'routine-table';
 
-    routinesTable.innerHTML = `
-    <table class="routine-table">
-            <thead>
-                <tr>
-                    <th scope="col">Ejercicio</th>
-                    <th scope="col">Series</th>
-                    <th scope="col">Repeticiones</th>
-                    <th scope="col">Descanso</th>
-                    <th scope="col">Duración</th>
-                </tr>
-            </thead>
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
 
-            <tbody>
-                ${rows}
-            </tbody>
-        </table>
-    `;
+    const headers = [
+        'Ejercicio',
+        'Series',
+        'Repeticiones',
+        'Descanso',
+        'Duración'
+    ];
+
+    headers.forEach((header) => {
+        const th = document.createElement('th');
+
+        th.scope = 'col';
+        th.textContent = header;
+
+        headerRow.append(th);
+    });
+
+    thead.append(headerRow);
+
+    const tbody = document.createElement('tbody');
+
+    routines.forEach((routine) => {
+        const row = document.createElement('tr');
+
+        const namecell = document.createElement('th');
+        namecell.scope = 'row';
+        namecell.textContent = routine.name;
+
+        const seriesCell = document.createElement('td');
+        seriesCell.textContent = routine.series;
+
+        const repetitionsCell = document.createElement('td');
+        repetitionsCell.textContent = routine.repetitionsPerSet;
+
+        const restCell = document.createElement('td');
+        restCell.textContent = `${routine.rest} s`
+
+        const durationCell = document.createElement('td');
+        durationCell.textContent = transfordurationRutine(routine.durationRoutine);
+
+        row.append(
+            namecell,
+            seriesCell,
+            repetitionsCell,
+            restCell,
+            durationCell
+        );
+
+        tbody.append(row);
+    });
+
+    table.append(thead, tbody);
+
+    routinesTable.replaceChildren(table);
 
 
+
+    // A la antigua
+    // const rows = routines
+    //     .map((routine) => {
+    //         return `
+    //     <tr>
+    //         <th scope="row">${routine.name}</th>
+    //         <td>${routine.series}</td>
+    //         <td>${routine.repetitionsPerSet}</td>
+    //         <td>${routine.rest} s</td>
+    //         <td>${transfordurationRutine(routine.durationRoutine)}</td>
+    //     </tr>
+    //         `
+    //     })
+    //     .join('');
+
+    // routinesTable.innerHTML = `
+    // <table class="routine-table">
+    //         <thead>
+    //             <tr>
+    //                 <th scope="col">Ejercicio</th>
+    //                 <th scope="col">Series</th>
+    //                 <th scope="col">Repeticiones</th>
+    //                 <th scope="col">Descanso</th>
+    //                 <th scope="col">Duración</th>
+    //             </tr>
+    //         </thead>
+
+    //         <tbody>
+    //             ${rows}
+    //         </tbody>
+    //     </table>
+    // `;
 }
 
 function setupModalListener() {
