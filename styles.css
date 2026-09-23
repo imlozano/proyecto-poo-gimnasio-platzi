@@ -90,35 +90,6 @@ body {
   font-size: 0.95em;
 }
 
-.day {
-  margin: 0 30px 42px;
-  padding-top: 40px;
-}
-
-.day:first-of-type {
-  padding-top: 40px;
-}
-
-.day__header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.day__label {
-  color: #666;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.day__number {
-  color: #333;
-  font-size: 2.5rem;
-  font-weight: 700;
-  line-height: 1;
-}
 
 .routines-table {
   padding: 1.5rem 2rem;
@@ -133,18 +104,6 @@ body {
   border: 1px solid #e5e5e5;
   border-radius: 10px;
   background: #fff;
-}
-
-.routine-table__caption {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  white-space: nowrap;
-  border: 0;
-  clip: rect(0, 0, 0, 0);
 }
 
 .routine-table th,
@@ -194,11 +153,6 @@ body {
 }
 
 @media (max-width: 700px) {
-  .day {
-    margin-left: 18px;
-    margin-right: 18px;
-    padding-top: 30px;
-  }
 
   .app__header,
   .app__footer {
@@ -219,9 +173,6 @@ body {
     white-space: nowrap;
   }
 
-  .day__number {
-    font-size: 2.2rem;
-  }
 }
 
 .modal {
