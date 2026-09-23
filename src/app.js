@@ -10,7 +10,7 @@ const ROUTINE_VALIDATION = {
     series: {
         min: 2,
         max: 5,
-        errorMessage: 'El nuevo valor es superior a 5 series o es mejor a 5 series. Recuerda que no te puedes exceder y no puedes no hacer nada.'
+        errorMessage: 'El número de series debe estar entre 2 y 5.'
     },
     repetitionsPerSet: {
         min: 5,
