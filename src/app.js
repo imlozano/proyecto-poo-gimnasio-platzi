@@ -159,7 +159,6 @@ function addRoutine(name, series, repetitionsPerSet, rest) {
 }
 
 function transfordurationRutine(duration) {
-
     // Complejo y poco mantenible
     // const minutes = duration / 60;
     // const minuteAndSeconds = minutes.toString().split('.');
@@ -282,9 +281,7 @@ function initApp() {
     setupModalListener();
     submitForm();
     closeModal();
-
-
-
+    
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
