@@ -69,6 +69,14 @@ body {
   font-size: 16px;
 }
 
+.modal__button--cancel {
+  box-shadow: 0px 0px 7px #d10808;
+}
+
+.modal__button--submit {
+  box-shadow: 0px 0px 7px #4ed20c;
+}
+
 .modal__button:active {
   box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
   border: 2px solid white;
