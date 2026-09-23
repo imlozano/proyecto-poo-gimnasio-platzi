@@ -39,6 +39,24 @@ body {
   font-weight: 600;
 }
 
+.app__button {
+  background-color: black;
+  color: white;
+  padding: 10px 20px;
+  border: 2px solid transparent;
+  transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  border-radius: 10px;
+  cursor: pointer;
+  outline: none;
+  font-size: 16px;
+}
+
+.app__button:active {
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+  border: 2px solid white;
+}
+
+
 .modal__button {
   background-color: black;
   color: white;
