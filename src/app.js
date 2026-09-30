@@ -42,7 +42,6 @@ class Routine {
     #repetitionsPerSet;
     #rest;
     #durationPerSet;
-    #durationRoutine;
     #createdAt;
 
     static #idCounter = 0;
@@ -56,7 +55,6 @@ class Routine {
         this.series = series;
         this.repetitionsPerSet = repetitionsPerSet;
         this.rest = rest;
-        this.#durationRoutine = this.calculateDuration();
         this.#createdAt = new Date().toISOString();
     }
 
@@ -101,7 +99,7 @@ class Routine {
     }
 
     get durationRoutine() {
-        return this.#durationRoutine;
+        return this.calculateDuration();
     }
 
     rename(newName) {
