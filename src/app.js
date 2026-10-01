@@ -164,8 +164,8 @@ class Routine {
 
     }
 
-    calculateDuration() {
-        return ((this.#repetitionsPerSet * this.#durationPerSet) * this.#series) + ((this.#series - 1) * this.#rest);
+    calculateDuration(durationPerRepetition = this.#durationPerSet) {
+        return ((this.#repetitionsPerSet * durationPerRepetition) * this.#series) + ((this.#series - 1) * this.#rest);
     }
 
     logWorkout(date) {
@@ -277,11 +277,14 @@ class RunningRoutine extends Routine {
     }
 
     calculateDuration() {
-        const calculateKmPerSeconds = this.#kilometersGoal * this.#paceSecondsPerKm;
-        const roundTotalSeconds = Math.round(calculateKmPerSeconds);
+        const totalRunningSeconds = this.#kilometersGoal * this.#paceSecondsPerKm;
+        const totalIntervals = this.series * this.repetitionsPerSet;
+        const secondsPerInterval = totalRunningSeconds / totalIntervals;
+        
+        const totalDuration = super.calculateDuration(secondsPerInterval)
 
 
-        return roundTotalSeconds;
+        return totalDuration;
     }
 }
 
@@ -477,5 +480,768 @@ function initApp() {
     closeModal();
 
 }
+
+// ======================================================
+// PRUEBAS ETAPA 3 - COMPOSICIÓN + HERENCIA + SUPER
+// ======================================================
+
+function assert(condition, message) {
+    if (!condition) {
+        throw new Error(`❌ ${message}`);
+    }
+
+    console.log(`✅ ${message}`);
+}
+
+function expectError(callback, message) {
+    try {
+        callback();
+
+        throw new Error(
+            `❌ ${message} → NO se lanzó ningún error`
+        );
+    } catch (error) {
+
+        if (error.message.startsWith('❌')) {
+            throw error;
+        }
+
+        console.log(`✅ ${message}`);
+    }
+}
+
+
+// ======================================================
+// 1. LOGTRACKER - ESTADO INICIAL
+// ======================================================
+
+const tracker = new LogTracker();
+
+assert(
+    Array.isArray(tracker.getLogs()),
+    'LogTracker permite consultar los registros'
+);
+
+assert(
+    tracker.getLogs().length === 0,
+    'LogTracker inicia sin registros'
+);
+
+
+// ======================================================
+// 2. LOGTRACKER - REGISTRO VÁLIDO
+// ======================================================
+
+const firstLog = tracker.addLog('2026-09-30');
+
+assert(
+    firstLog === '2026-09-30',
+    'LogTracker agrega una fecha válida'
+);
+
+assert(
+    tracker.getLogs().length === 1,
+    'El registro válido queda almacenado'
+);
+
+assert(
+    tracker.getLogs()[0] === '2026-09-30',
+    'LogTracker conserva correctamente la fecha registrada'
+);
+
+
+// ======================================================
+// 3. LOGTRACKER - FORMATO Y FECHA REAL
+// ======================================================
+
+const dateValidationTracker = new LogTracker();
+
+assert(
+    dateValidationTracker.addLog('2026-10-01') === '2026-10-01',
+    'LogTracker acepta una fecha válida normal'
+);
+
+assert(
+    dateValidationTracker.addLog('2024-02-29') === '2024-02-29',
+    'LogTracker acepta 29 de febrero en año bisiesto'
+);
+
+assert(
+    dateValidationTracker.addLog('2026-02-29') === null,
+    'LogTracker rechaza 29 de febrero en año no bisiesto'
+);
+
+assert(
+    dateValidationTracker.addLog('2026-04-31') === null,
+    'LogTracker rechaza días inexistentes'
+);
+
+assert(
+    dateValidationTracker.addLog('2026-13-01') === null,
+    'LogTracker rechaza meses mayores a 12'
+);
+
+assert(
+    dateValidationTracker.addLog('2026-00-01') === null,
+    'LogTracker rechaza el mes 00'
+);
+
+assert(
+    dateValidationTracker.addLog('aaaaaaaaaa') === null,
+    'LogTracker rechaza texto con longitud válida pero formato inválido'
+);
+
+assert(
+    dateValidationTracker.addLog('2026/10/01') === null,
+    'LogTracker exige el formato YYYY-MM-DD'
+);
+
+assert(
+    dateValidationTracker.addLog('hola') === null,
+    'LogTracker rechaza cadenas con longitud incorrecta'
+);
+
+assert(
+    dateValidationTracker.getLogs().length === 2,
+    'Solo las fechas realmente válidas quedan almacenadas'
+);
+
+
+// ======================================================
+// 4. LOGTRACKER - ENCAPSULAMIENTO
+// ======================================================
+
+const copiedLogs = tracker.getLogs();
+
+copiedLogs.push('fecha-falsa');
+
+assert(
+    copiedLogs.length === 2,
+    'La copia de logs puede modificarse externamente'
+);
+
+assert(
+    tracker.getLogs().length === 1,
+    'Modificar la copia no altera el estado privado de LogTracker'
+);
+
+
+// ======================================================
+// 5. ROUTINE - CREACIÓN Y GETTERS
+// ======================================================
+
+const routineTracker = new LogTracker();
+
+const routine = new Routine(
+    'Sentadilla',
+    2,
+    10,
+    30,
+    routineTracker
+);
+
+assert(
+    routine.name === 'Sentadilla',
+    'Routine inicializa correctamente el nombre'
+);
+
+assert(
+    routine.series === 2,
+    'Routine inicializa correctamente las series'
+);
+
+assert(
+    routine.repetitionsPerSet === 10,
+    'Routine inicializa correctamente las repeticiones'
+);
+
+assert(
+    routine.rest === 30,
+    'Routine inicializa correctamente el descanso'
+);
+
+
+// ======================================================
+// 6. ROUTINE - CÁLCULO BASE
+// ======================================================
+
+// Fórmula:
+//
+// (10 repeticiones × 5 segundos) × 2 series
+// +
+// (2 - 1) × 30 segundos descanso
+//
+// 100 + 30 = 130
+
+assert(
+    routine.calculateDuration() === 130,
+    'Routine calcula correctamente la duración usando durationPerSet por defecto'
+);
+
+assert(
+    routine.durationRoutine === 130,
+    'durationRoutine utiliza calculateDuration()'
+);
+
+
+// ======================================================
+// 7. ROUTINE - calculateDuration CON DURACIÓN PERSONALIZADA
+// ======================================================
+
+// Le indicamos que cada repetición dura 10 segundos:
+//
+// (10 × 10) × 2
+// +
+// 30
+//
+// = 230
+
+assert(
+    routine.calculateDuration(10) === 230,
+    'Routine permite recibir una duración personalizada por repetición'
+);
+
+
+// ======================================================
+// 8. ROUTINE - COMPOSICIÓN CON LOGTRACKER
+// ======================================================
+
+const loggedWorkout = routine.logWorkout('2026-10-01');
+
+assert(
+    loggedWorkout !== null,
+    'Routine puede registrar un entrenamiento mediante LogTracker'
+);
+
+assert(
+    loggedWorkout.date === '2026-10-01',
+    'Routine delega correctamente el registro de la fecha'
+);
+
+assert(
+    routine.getLogs().length === 1,
+    'Routine delega correctamente la consulta de registros'
+);
+
+assert(
+    routine.getLogs()[0] === '2026-10-01',
+    'Routine devuelve los registros almacenados por LogTracker'
+);
+
+
+// ======================================================
+// 9. ROUTINE - LOG INVÁLIDO
+// ======================================================
+
+const invalidRoutineLog = routine.logWorkout('hola');
+
+assert(
+    invalidRoutineLog === null,
+    'Routine devuelve null cuando LogTracker rechaza un registro'
+);
+
+assert(
+    routine.getLogs().length === 1,
+    'Un log inválido no modifica los registros de Routine'
+);
+
+
+// ======================================================
+// 10. RUNNINGROUTINE - HERENCIA
+// ======================================================
+
+const running = new RunningRoutine(
+    'Running por intervalos',
+    3,
+    5,
+    60,
+    new LogTracker(),
+    6,
+    '5:00'
+);
+
+assert(
+    running instanceof RunningRoutine,
+    'running es una instancia de RunningRoutine'
+);
+
+assert(
+    running instanceof Routine,
+    'RunningRoutine hereda de Routine'
+);
+
+assert(
+    running.name === 'Running por intervalos',
+    'RunningRoutine hereda los getters de Routine'
+);
+
+assert(
+    running.series === 3,
+    'RunningRoutine hereda series de Routine'
+);
+
+assert(
+    running.repetitionsPerSet === 5,
+    'RunningRoutine hereda repetitionsPerSet de Routine'
+);
+
+assert(
+    running.rest === 60,
+    'RunningRoutine hereda rest de Routine'
+);
+
+
+// ======================================================
+// 11. CAMPOS ESPECÍFICOS DE RUNNINGROUTINE
+// ======================================================
+
+assert(
+    running.kilometersGoal === 6,
+    'kilometersGoal se inicializa correctamente'
+);
+
+assert(
+    running.paceSecondsPerKm === '5:00',
+    'El getter del ritmo devuelve el formato mm:ss'
+);
+
+
+// ======================================================
+// 12. CÁLCULO DE RUNNING POR INTERVALOS
+// ======================================================
+//
+// 6 km × 300 segundos/km
+// = 1800 segundos corriendo
+//
+// 3 series × 5 repeticiones
+// = 15 intervalos
+//
+// 1800 / 15
+// = 120 segundos por intervalo
+//
+// super.calculateDuration(120)
+//
+// (5 × 120) × 3
+// +
+// (3 - 1) × 60
+//
+// 1800 + 120
+// = 1920 segundos
+//
+
+assert(
+    running.calculateDuration() === 1920,
+    'RunningRoutine calcula correctamente la duración de una sesión por intervalos'
+);
+
+
+// ======================================================
+// 13. durationRoutine + POLIMORFISMO
+// ======================================================
+
+assert(
+    running.durationRoutine === 1920,
+    'durationRoutine utiliza el calculateDuration sobrescrito de RunningRoutine'
+);
+
+
+// ======================================================
+// 14. COMPATIBILIDAD CON EL FORMATEADOR
+// ======================================================
+
+assert(
+    transfordurationRutine(running.durationRoutine) === '32 m : 0 s',
+    'La duración de RunningRoutine es compatible con el formateador existente'
+);
+
+
+// ======================================================
+// 15. RECÁLCULO DINÁMICO - DISTANCIA
+// ======================================================
+
+// Cambiamos de 6 km a 10 km.
+//
+// 10 × 300 = 3000 segundos corriendo
+//
+// descansos:
+// (3 - 1) × 60 = 120
+//
+// total:
+// 3120 segundos
+
+running.kilometersGoal = 10;
+
+assert(
+    running.calculateDuration() === 3120,
+    'La duración cambia automáticamente al modificar kilometersGoal'
+);
+
+assert(
+    running.durationRoutine === 3120,
+    'durationRoutine refleja el nuevo objetivo de kilómetros'
+);
+
+
+// ======================================================
+// 16. RECÁLCULO DINÁMICO - RITMO
+// ======================================================
+
+// 10 km a 6:00/km:
+//
+// 10 × 360
+// = 3600 segundos corriendo
+//
+// + 120 segundos de descanso
+//
+// = 3720 segundos
+
+running.paceSecondsPerKm = '6:00';
+
+assert(
+    running.paceSecondsPerKm === '6:00',
+    'El setter permite modificar el ritmo'
+);
+
+assert(
+    running.calculateDuration() === 3720,
+    'La duración cambia automáticamente al modificar el ritmo'
+);
+
+assert(
+    running.durationRoutine === 3720,
+    'durationRoutine refleja el nuevo ritmo'
+);
+
+
+// ======================================================
+// 17. RECÁLCULO DINÁMICO - DESCANSO
+// ======================================================
+
+// Ahora descanso = 30:
+//
+// carrera = 3600
+//
+// descansos:
+// (3 - 1) × 30
+// = 60
+//
+// total = 3660
+
+running.changeRest(30);
+
+assert(
+    running.rest === 30,
+    'RunningRoutine puede modificar el descanso heredado'
+);
+
+assert(
+    running.durationRoutine === 3660,
+    'La duración se recalcula al modificar el descanso'
+);
+
+
+// ======================================================
+// 18. VALIDACIONES kilometersGoal
+// ======================================================
+
+running.kilometersGoal = 5;
+
+assert(
+    running.kilometersGoal === 5,
+    'kilometersGoal acepta enteros positivos'
+);
+
+running.kilometersGoal = 5.5;
+
+assert(
+    running.kilometersGoal === 5.5,
+    'kilometersGoal acepta decimales positivos'
+);
+
+running.kilometersGoal = '5.5';
+
+assert(
+    running.kilometersGoal === 5.5,
+    'kilometersGoal acepta strings numéricos válidos'
+);
+
+expectError(
+    () => {
+        running.kilometersGoal = 0;
+    },
+    'kilometersGoal rechaza cero'
+);
+
+expectError(
+    () => {
+        running.kilometersGoal = -1;
+    },
+    'kilometersGoal rechaza números negativos'
+);
+
+expectError(
+    () => {
+        running.kilometersGoal = '5abc';
+    },
+    'kilometersGoal rechaza strings parcialmente numéricos'
+);
+
+expectError(
+    () => {
+        running.kilometersGoal = 'hola';
+    },
+    'kilometersGoal rechaza strings no numéricos'
+);
+
+assert(
+    running.kilometersGoal === 5.5,
+    'Un valor inválido no altera el último kilometersGoal válido'
+);
+
+
+// ======================================================
+// 19. VALIDACIONES DEL RITMO
+// ======================================================
+
+// Dejamos primero un ritmo válido conocido
+
+running.paceSecondsPerKm = '6:00';
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = 330;
+    },
+    'El ritmo rechaza valores que no sean string'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '5';
+    },
+    'El ritmo exige el separador ":"'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '5:';
+    },
+    'El ritmo rechaza segundos vacíos'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = ':30';
+    },
+    'El ritmo rechaza minutos vacíos'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = 'hola:30';
+    },
+    'El ritmo rechaza minutos no numéricos'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '5:hola';
+    },
+    'El ritmo rechaza segundos no numéricos'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '5.5:30';
+    },
+    'El ritmo rechaza minutos decimales'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '5:30.5';
+    },
+    'El ritmo rechaza segundos decimales'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '5:60';
+    },
+    'El ritmo rechaza segundos superiores a 59'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '-1:30';
+    },
+    'El ritmo rechaza minutos negativos'
+);
+
+expectError(
+    () => {
+        running.paceSecondsPerKm = '0:00';
+    },
+    'El ritmo total no puede ser cero'
+);
+
+assert(
+    running.paceSecondsPerKm === '6:00',
+    'Los errores de ritmo no alteran el último valor válido'
+);
+
+
+// ======================================================
+// 20. ESTADO VÁLIDO DESPUÉS DE ERRORES
+// ======================================================
+
+assert(
+    running.kilometersGoal === 5.5,
+    'kilometersGoal mantiene el último valor válido después de errores'
+);
+
+assert(
+    running.paceSecondsPerKm === '6:00',
+    'paceSecondsPerKm mantiene el último valor válido después de errores'
+);
+
+
+// ======================================================
+// 21. RUNNINGROUTINE + COMPOSICIÓN HEREDADA
+// ======================================================
+
+assert(
+    running.getLogs().length === 0,
+    'RunningRoutine hereda la consulta de logs'
+);
+
+const runningLog = running.logWorkout('2026-10-02');
+
+assert(
+    runningLog !== null,
+    'RunningRoutine puede registrar entrenamientos'
+);
+
+assert(
+    running.getLogs().length === 1,
+    'RunningRoutine utiliza LogTracker mediante composición heredada'
+);
+
+assert(
+    running.getLogs()[0] === '2026-10-02',
+    'El registro queda almacenado en el LogTracker de RunningRoutine'
+);
+
+
+// ======================================================
+// 22. RUNNINGROUTINE - LOG INVÁLIDO
+// ======================================================
+
+const invalidRunningLog = running.logWorkout('fecha-falsa');
+
+assert(
+    invalidRunningLog === null,
+    'RunningRoutine rechaza registros con fecha inválida'
+);
+
+assert(
+    running.getLogs().length === 1,
+    'Un registro inválido no modifica el historial de RunningRoutine'
+);
+
+
+// ======================================================
+// 23. CAMBIO DE SERIES Y RECÁLCULO
+// ======================================================
+
+// Dejamos un caso fácil:
+//
+// 5.5 km
+// 6:00/km
+//
+// tiempo corriendo:
+// 5.5 × 360
+// = 1980 segundos
+//
+// series = 2
+// descanso = 30
+//
+// descanso total:
+// (2 - 1) × 30
+// = 30
+//
+// total = 2010
+
+running.changeCountSeries(2);
+
+assert(
+    running.series === 2,
+    'RunningRoutine puede modificar las series heredadas'
+);
+
+assert(
+    running.durationRoutine === 2010,
+    'La duración se recalcula correctamente al cambiar las series'
+);
+
+
+// ======================================================
+// 24. CAMBIO DE REPETICIONES Y CONSISTENCIA
+// ======================================================
+
+// Aunque cambie el número de intervalos,
+// los 1980 segundos de carrera se redistribuyen.
+//
+// El tiempo total corriendo sigue siendo 1980.
+//
+// + 30 segundos de descanso
+//
+// = 2010
+
+running.changeRepetitionsPerSet(10);
+
+assert(
+    running.repetitionsPerSet === 10,
+    'RunningRoutine puede modificar las repeticiones heredadas'
+);
+
+assert(
+    running.durationRoutine === 2010,
+    'Cambiar la cantidad de intervalos redistribuye el esfuerzo sin alterar la distancia total'
+);
+
+
+// ======================================================
+// 25. COMPROBAR NUEVA INTERPRETACIÓN DE INTERVALOS
+// ======================================================
+
+const intervalRoutine = new RunningRoutine(
+    'Intervalos 6K',
+    3,
+    5,
+    60,
+    new LogTracker(),
+    6,
+    '5:00'
+);
+
+assert(
+    intervalRoutine.calculateDuration() === 1920,
+    'El cálculo por intervalos produce 32 minutos para 6 km a ritmo 5:00 con descansos'
+);
+
+assert(
+    transfordurationRutine(intervalRoutine.durationRoutine) === '32 m : 0 s',
+    'La sesión por intervalos muestra correctamente 32 minutos'
+);
+
+
+// ======================================================
+// RESULTADO FINAL
+// ======================================================
+
+console.log('');
+console.log('========================================================');
+console.log('✅ TODAS LAS PRUEBAS ACTUALIZADAS DE LA ETAPA 3 PASARON');
+console.log('========================================================');
 
 document.addEventListener('DOMContentLoaded', initApp);
