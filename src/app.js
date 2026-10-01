@@ -34,6 +34,43 @@ function validateInteger(value, rule) {
     }
 }
 
+class LogTracker {
+    #dates = []
+
+    addLog(date) {
+        if (typeof date !== 'string' || date.length != 10) {
+            return null;
+        }
+
+        const regex = /^\d{4}-\d{2}-\d{2}$/;
+
+        if (!regex.test(date)) {
+            return null;
+        }
+
+        const [year, month, day] = date.split('-');
+
+        const dateFormat = new Date(year, month - 1, day);
+
+        const yearNumber = Number(year);
+        const monthNumber = Number(month);
+        const dayNumber = Number(day);
+
+        if (!((dateFormat.getFullYear() === yearNumber) && ((dateFormat.getMonth() + 1) === monthNumber) && (dateFormat.getDate() === dayNumber))) {
+            return null;
+        }
+
+        this.#dates.push(date);
+        return date;
+
+
+    }
+
+    getLogs() {
+        return [...this.#dates];
+    }
+}
+
 
 class Routine {
     #id;
@@ -43,11 +80,12 @@ class Routine {
     #rest;
     #durationPerSet;
     #createdAt;
+    #logtracker
 
     static #idCounter = 0;
 
 
-    constructor(name, series, repetitionsPerSet, rest) {
+    constructor(name, series, repetitionsPerSet, rest, logtracker = new LogTracker()) {
 
         this.#id = Routine.generateId();
         this.name = name;
@@ -56,6 +94,7 @@ class Routine {
         this.repetitionsPerSet = repetitionsPerSet;
         this.rest = rest;
         this.#createdAt = new Date().toISOString();
+        this.#logtracker = logtracker;
     }
 
     get id() {
@@ -108,28 +147,41 @@ class Routine {
     }
 
     changeCountSeries(newValue) {
-    
+
         this.series = newValue;
 
-        this.#durationRoutine = this.calculateDuration();
     }
 
     changeRepetitionsPerSet(newValue) {
-    
+
         this.repetitionsPerSet = newValue;
 
-        this.#durationRoutine = this.calculateDuration();
     }
 
     changeRest(newValue) {
 
         this.rest = newValue;
 
-        this.#durationRoutine = this.calculateDuration();
     }
 
     calculateDuration() {
         return ((this.#repetitionsPerSet * this.#durationPerSet) * this.#series) + ((this.#series - 1) * this.#rest);
+    }
+
+    logWorkout(date) {
+        const created = this.#logtracker.addLog(date);
+        if (!created) {
+            return null;
+        }
+
+        return {
+            habitId: this.#id,
+            date: created,
+        };
+    }
+
+    getLogs() {
+        return this.#logtracker.getLogs();
     }
 
     static generateId() {
@@ -137,6 +189,100 @@ class Routine {
     }
 
 
+}
+
+class RunningRoutine extends Routine {
+
+    #kilometersGoal;
+    #paceSecondsPerKm;
+
+    constructor(name, series, repetitionsPerSet, rest, logtracker, kilometersGoal, paceSecondsPerKm) {
+        super(name, series, repetitionsPerSet, rest, logtracker);
+        this.kilometersGoal = kilometersGoal;
+        this.paceSecondsPerKm = paceSecondsPerKm;
+    }
+
+    get kilometersGoal() {
+        return this.#kilometersGoal;
+    }
+
+    set kilometersGoal(value) {
+        const km = Number(value);
+        if (isNaN(km) || km <= 0) {
+            throw new Error('El objetivo de los kilometros debe de ser un número positivo');
+        }
+
+        this.#kilometersGoal = km;
+
+    }
+
+    get paceSecondsPerKm() {
+
+        const minutes = Math.floor(this.#paceSecondsPerKm / 60);
+        const seconds = Math.floor(this.#paceSecondsPerKm % 60);
+
+        if (seconds < 10) {
+            return `${minutes}:0${seconds}`;
+        }
+
+        return `${minutes}:${seconds}`;
+
+    }
+
+    set paceSecondsPerKm(value) {
+
+        if (typeof value !== 'string') {
+            throw new Error('Debes pasar el ritmo como string')
+        }
+        if (!value.includes(':')) {
+            throw new Error('El formato para pasar el ritmo es mm:ss');
+        }
+
+        const values = value.split(':');
+
+        if (values.length !== 2 || values[0] === '' || values[1] === '') {
+            throw new Error('Recuerda pasar los minutos y segundos, no solo un valor');
+        }
+
+        const minutes = Number(values[0]);
+        const seconds = Number(values[1]);
+
+        if (isNaN(minutes) || isNaN(seconds)) {
+            throw new Error('El ritmo deben ser valores numericos')
+        }
+
+        if (!Number.isInteger(minutes) || !Number.isInteger(seconds)) {
+            throw new Error('Tanto los minutos como los segundos deben ser valores enteros')
+        }
+
+
+        if (seconds < 0 || seconds > 59) {
+            throw new Error('Los segundos deben estar entre 0 y 59');
+        }
+
+        if (minutes < 0) {
+            throw new Error('Los minutos no puedes negativos')
+        }
+
+        const transforMinutes = minutes * 60;
+        const total = transforMinutes + seconds;
+
+        if (total === 0) {
+            throw new Error('El ritmo total no puede ser 0');
+        }
+
+        this.#paceSecondsPerKm = total;
+
+
+    }
+
+    calculateDuration() {
+        const calculateKmPerSeconds = this.#kilometersGoal * this.#paceSecondsPerKm;
+        const roundTotalSeconds = Math.round(calculateKmPerSeconds);
+
+
+        return roundTotalSeconds;
+    }
 }
 
 
