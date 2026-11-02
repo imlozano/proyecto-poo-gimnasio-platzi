@@ -1,36 +1,55 @@
 const routines = [];
 
+class DomainError extends Error {
+    constructor(message, code) {
+        super(message);
+        this.name = this.constructor.name;
+        this.code = code;
+    }
+}
+
+class ValidationError extends DomainError {}
+
+class CreationError extends DomainError {}
+
 const ROUTINE_VALIDATION = {
     name: {
         minLength: 3,
-        errorMessage: 'El nombre de la rutina debe tener al menos 3 caracteres.'
+        errorMessage: 'El nombre de la rutina debe tener al menos 3 caracteres.',
+        code: 'ROUTINE_NAME_INVALID'
     },
     series: {
         min: 2,
         max: 5,
-        errorMessage: 'El número de series debe estar entre 2 y 5.'
+        errorMessage: 'El número de series debe estar entre 2 y 5.',
+        code: 'ROUTINE_SERIES_OUT_OF_RANGE'
     },
     repetitionsPerSet: {
         min: 5,
         max: 30,
-        errorMessage: 'El valor de las repeticiones por serie es muy alto o muy bajo. Recuerda que el máximo son 30. Empieza de a poco 😉.'
+        errorMessage: 'El valor de las repeticiones por serie es muy alto o muy bajo. Recuerda que el máximo son 30. Empieza de a poco 😉.',
+        code: 'ROUTINE_REPETITIONS_OUT_OF_RANGE'
     },
     rest: {
         min: 30,
         max: 60,
-        errorMessage: 'El descanso máximo es de un minuto. Mas te puede dar pereza 🦥. Y menos tiempo te puede dar fatiga. El rango es de 30 a 60 segundos.'
+        errorMessage: 'El descanso máximo es de un minuto. Mas te puede dar pereza 🦥. Y menos tiempo te puede dar fatiga. El rango es de 30 a 60 segundos.',
+        code: 'ROUTINE_REST_OUT_OF_RANGE'
     }
 };
 
 function validateName(name) {
     if (typeof name !== 'string' || name.trim().length < ROUTINE_VALIDATION.name.minLength) {
-        throw new Error(ROUTINE_VALIDATION.name.errorMessage);
+        throw new ValidationError(
+            ROUTINE_VALIDATION.name.errorMessage,
+            ROUTINE_VALIDATION.name.code
+        );
     }
 }
 
 function validateInteger(value, rule) {
     if (!Number.isInteger(value) || value < rule.min || value > rule.max) {
-        throw new Error(rule.errorMessage);
+        throw new ValidationError(rule.errorMessage, rule.code);
     }
 }
 
@@ -71,6 +90,8 @@ class LogTracker {
     }
 }
 
+let factoryCreationAllowed = false
+
 
 class Routine {
     #id;
@@ -81,11 +102,21 @@ class Routine {
     #durationPerSet;
     #createdAt;
     #logtracker
+    #frequency
 
     static #idCounter = 0;
 
 
-    constructor(name, series, repetitionsPerSet, rest, logtracker = new LogTracker()) {
+    constructor(name, series, repetitionsPerSet, rest, logtracker = new LogTracker(), frequency = 'daily') {
+
+        if (!factoryCreationAllowed) {
+            throw new CreationError(
+                'Debe usarse una factoria',
+                'ROUTINE_FACTORY_REQUIRED'
+            );
+        }
+
+        factoryCreationAllowed = false;
 
         this.#id = Routine.generateId();
         this.name = name;
@@ -95,6 +126,7 @@ class Routine {
         this.rest = rest;
         this.#createdAt = new Date().toISOString();
         this.#logtracker = logtracker;
+        this.frequency = frequency;
     }
 
     get id() {
@@ -141,6 +173,23 @@ class Routine {
         return this.calculateDuration();
     }
 
+    get frequency() {
+        return this.#frequency;
+    }
+
+    set frequency(value) {
+        const validFrequencies = ['daily', 'weekly'];
+
+        if (!validFrequencies.includes(value)) {
+            throw new ValidationError(
+                'La frecuencia debe ser "daily" o "weekly".',
+                'ROUTINE_FREQUENCY_INVALID'
+            );
+        }
+
+        this.#frequency = value;
+    }
+
     rename(newName) {
 
         this.name = newName;
@@ -184,6 +233,34 @@ class Routine {
         return this.#logtracker.getLogs();
     }
 
+    calculateStreak(today) {
+
+        const calculator = streakCalculators[this.frequency];
+
+        if (!today) {
+            const currentDate = new Date();
+
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+
+            today = `${year}-${month}-${day}`;
+
+        }
+
+        return calculator.calculate(this, this.getLogs(), today);
+    }
+
+    static daily(name, series, repetitionsPerSet, rest, logtracker) {
+        factoryCreationAllowed = true;
+        return new Routine(name, series, repetitionsPerSet, rest, logtracker, 'daily');
+    }
+
+    static weekly(name, series, repetitionsPerSet, rest, logtracker) {
+        factoryCreationAllowed = true;
+        return new Routine(name, series, repetitionsPerSet, rest, logtracker, 'weekly');
+    }
+
     static generateId() {
         return ++Routine.#idCounter;
     }
@@ -196,8 +273,8 @@ class RunningRoutine extends Routine {
     #kilometersGoal;
     #paceSecondsPerKm;
 
-    constructor(name, series, repetitionsPerSet, rest, logtracker, kilometersGoal, paceSecondsPerKm) {
-        super(name, series, repetitionsPerSet, rest, logtracker);
+    constructor(name, series, repetitionsPerSet, rest, logtracker, kilometersGoal, paceSecondsPerKm, frequency = 'daily') {
+        super(name, series, repetitionsPerSet, rest, logtracker, frequency);
         this.kilometersGoal = kilometersGoal;
         this.paceSecondsPerKm = paceSecondsPerKm;
     }
@@ -209,7 +286,10 @@ class RunningRoutine extends Routine {
     set kilometersGoal(value) {
         const km = Number(value);
         if (isNaN(km) || km <= 0) {
-            throw new Error('El objetivo de los kilometros debe de ser un número positivo');
+            throw new ValidationError(
+                'El objetivo de los kilometros debe de ser un número positivo',
+                'RUNNING_KILOMETERS_INVALID'
+            );
         }
 
         this.#kilometersGoal = km;
@@ -232,43 +312,67 @@ class RunningRoutine extends Routine {
     set paceSecondsPerKm(value) {
 
         if (typeof value !== 'string') {
-            throw new Error('Debes pasar el ritmo como string')
+            throw new ValidationError(
+                'Debes pasar el ritmo como string',
+                'RUNNING_PACE_INVALID'
+            );
         }
         if (!value.includes(':')) {
-            throw new Error('El formato para pasar el ritmo es mm:ss');
+            throw new ValidationError(
+                'El formato para pasar el ritmo es mm:ss',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
         const values = value.split(':');
 
         if (values.length !== 2 || values[0] === '' || values[1] === '') {
-            throw new Error('Recuerda pasar los minutos y segundos, no solo un valor');
+            throw new ValidationError(
+                'Recuerda pasar los minutos y segundos, no solo un valor',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
         const minutes = Number(values[0]);
         const seconds = Number(values[1]);
 
         if (isNaN(minutes) || isNaN(seconds)) {
-            throw new Error('El ritmo deben ser valores numericos')
+            throw new ValidationError(
+                'El ritmo deben ser valores numericos',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
         if (!Number.isInteger(minutes) || !Number.isInteger(seconds)) {
-            throw new Error('Tanto los minutos como los segundos deben ser valores enteros')
+            throw new ValidationError(
+                'Tanto los minutos como los segundos deben ser valores enteros',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
 
         if (seconds < 0 || seconds > 59) {
-            throw new Error('Los segundos deben estar entre 0 y 59');
+            throw new ValidationError(
+                'Los segundos deben estar entre 0 y 59',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
         if (minutes < 0) {
-            throw new Error('Los minutos no puedes negativos')
+            throw new ValidationError(
+                'Los minutos no puedes negativos',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
         const transforMinutes = minutes * 60;
         const total = transforMinutes + seconds;
 
         if (total === 0) {
-            throw new Error('El ritmo total no puede ser 0');
+            throw new ValidationError(
+                'El ritmo total no puede ser 0',
+                'RUNNING_PACE_INVALID'
+            );
         }
 
         this.#paceSecondsPerKm = total;
@@ -280,13 +384,200 @@ class RunningRoutine extends Routine {
         const totalRunningSeconds = this.#kilometersGoal * this.#paceSecondsPerKm;
         const totalIntervals = this.series * this.repetitionsPerSet;
         const secondsPerInterval = totalRunningSeconds / totalIntervals;
-        
+
         const totalDuration = super.calculateDuration(secondsPerInterval)
 
 
         return totalDuration;
     }
+
+    static daily(name, series, repetitions, rest, kilometersGoal, pace, logtracker) {
+        factoryCreationAllowed = true;
+        return new RunningRoutine(name, series, repetitions, rest, logtracker, kilometersGoal, pace, 'daily');
+    }
+
+    static weekly(name, series, repetitions, rest, kilometersGoal, pace, logtracker) {
+        factoryCreationAllowed = true;
+        return new RunningRoutine(name, series, repetitions, rest, logtracker, kilometersGoal, pace, 'weekly');
+    }
 }
+
+class StreakCalculator {
+    constructor() {
+        if (new.target === StreakCalculator) {
+            throw new TypeError("No se puede instanciar una clase base directamente. Debes heredar de ella.");
+
+        }
+    }
+
+    calculate(habit, logs, today) {
+        throw new TypeError("La clase base no sabe calcular una racha");
+    }
+}
+
+class DailyStreakCalculator extends StreakCalculator {
+    calculate(habit, logs, today) {
+
+        const logsCopy = [...logs];
+
+        if (logsCopy.length === 0) { // validacion de no registros de rachas
+            return 0;
+        }
+
+        const unique = [...new Set(logsCopy)];
+
+        // ordenar logs del mas recientes al mas antiguo
+        const sortedLogs = unique.sort((a, b) => b.localeCompare(a));
+
+        const todayDate = new Date(`${today}T00:00:00`);
+        const todayString = this.#getDateString(todayDate);
+
+        const yesterdayDate = new Date(todayDate);
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+
+        const yesterdayString = this.#getDateString(yesterdayDate);
+
+        let currentDate;
+
+        if (unique.includes(todayString)) {
+            currentDate = todayDate;
+        } else if (unique.includes(yesterdayString)) {
+            currentDate = yesterdayDate;
+        } else {
+            return 0;
+        }
+
+        let streak = 0;
+
+        for (let i = 0; i < sortedLogs.length; i++) {
+            const expectedDate = this.#getDateString(currentDate);
+
+            if (sortedLogs[i] === expectedDate) {
+                streak++;
+                currentDate.setDate(currentDate.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+
+        return streak;
+    }
+
+    #getDateString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    }
+}
+
+class WeeklyStreakCalculator extends StreakCalculator {
+    calculate(habit, logs, today) {
+
+        const logsCopy = [...logs];
+
+        if (logsCopy.length === 0) {
+            return 0;
+        }
+
+        const unique = [...new Set(logsCopy)]
+
+        const weeks = this.#groupByWeek(unique);
+        const sortedWeeks = Object.keys(weeks).sort((a, b) => b.localeCompare(a));
+
+        let streak = 0;
+
+        const currentWeek = this.#getWeekKey(today);
+        let expectedWeek = currentWeek;
+
+        if (!weeks[currentWeek]) {
+            expectedWeek = this.#getPreviousWeek(currentWeek);
+
+            if (!weeks[expectedWeek]) {
+                return 0;
+            }
+        }
+        for (const week of sortedWeeks) {
+            if (week === expectedWeek) {
+                streak++;
+                expectedWeek = this.#getPreviousWeek(expectedWeek);
+            } else {
+                break;
+            }
+        }
+
+        return streak;
+    }
+
+    // ⚠️ Cuando se trabaja con fechas hay que tocarlo con pinzas ya que es uno de los conceptos y de las formas en la que vamos a estar trabajando que pueda ser bastante entretenida colocando atención al detalle ya que hay distintas formas en JS de manipular el calendario.todo haciendo calculo de la fecha actual y de los logs registrados ⚠️
+    #groupByWeek(logs) {
+        const weeks = {};
+        logs.forEach((log) => {
+            const weekKey = this.#getWeekKey(new Date(log + 'T00:00:00'));
+            if (!weeks[weekKey]) {
+                weeks[weekKey] = [];
+            }
+            weeks[weekKey].push(log);
+        });
+        return weeks;
+    }
+
+
+    #getWeekKey(date) {
+
+        const copyDate = typeof date === 'string'
+            ? new Date(`${date}T00:00:00`)
+            : new Date(date);
+
+
+        copyDate.setHours(0, 0, 0, 0);
+
+        copyDate.setDate(copyDate.getDate() + 4 - (copyDate.getDay() || 7));
+
+        const year = copyDate.getFullYear();
+
+        const weekNo = this.#getWeekNumber(copyDate);
+
+        return `${year}-W${String(weekNo).padStart(2, '0')}`;
+    }
+
+    #getWeekNumber(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+        const yearStart = new Date(d.getFullYear(), 0, 1);
+        const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+        return weekNo;
+    }
+
+    #getPreviousWeek(weekKey) {
+        const [year, weekStr] = weekKey.split('-W');
+        let week = parseInt(weekStr);
+        let y = parseInt(year);
+
+        week--;
+        if (week < 1) {
+            y--;
+
+            const month = 11;
+            const day = 28;
+            const lastDayOfYear = new Date(y, month, day);
+
+            week = this.#getWeekNumber(lastDayOfYear);
+        }
+
+        return `${y}-W${String(week).padStart(2, '0')}`;
+    }
+
+}
+
+// Mapa de estrategias por frecuencia
+const streakCalculators = {
+    daily: new DailyStreakCalculator(),
+    weekly: new WeeklyStreakCalculator(),
+};
+
 
 
 let messageTimeout;
@@ -322,10 +613,14 @@ function addRoutine(name, series, repetitionsPerSet, rest) {
     }
 
     try {
-        const routine = new Routine(name, series, repetitionsPerSet, rest);
+        const routine = Routine.daily(name, series, repetitionsPerSet, rest);
         routines.push(routine);
         return routine;
     } catch (error) {
+        if (!(error instanceof DomainError)) {
+            throw error;
+        }
+
         showMessage(error.message, 'error');
         console.log(error.message)
         return null;
@@ -481,8 +776,10 @@ function initApp() {
 
 }
 
+document.addEventListener('DOMContentLoaded', initApp);
+
 // ======================================================
-// PRUEBAS ETAPA 3 - COMPOSICIÓN + HERENCIA + SUPER
+// PRUEBAS DEL PROYECTO
 // ======================================================
 
 function assert(condition, message) {
@@ -508,6 +805,37 @@ function expectError(callback, message) {
 
         console.log(`✅ ${message}`);
     }
+}
+
+function expectDomainError(callback, expectedCode, expectedMessage, message) {
+    let receivedError = null;
+
+    try {
+        callback();
+    } catch (error) {
+        receivedError = error;
+    }
+
+    assert(
+        receivedError !== null,
+        `${message}: debía lanzar un error`
+    );
+
+    assert(
+        receivedError instanceof DomainError &&
+            receivedError instanceof Error,
+        `${message}: es un DomainError y un Error`
+    );
+
+    assert(
+        receivedError.code === expectedCode,
+        `${message}: conserva el código ${expectedCode}`
+    );
+
+    assert(
+        receivedError.message === expectedMessage,
+        `${message}: conserva el mensaje original`
+    );
 }
 
 
@@ -632,7 +960,7 @@ assert(
 
 const routineTracker = new LogTracker();
 
-const routine = new Routine(
+const routine = Routine.daily(
     'Sentadilla',
     2,
     10,
@@ -750,14 +1078,14 @@ assert(
 // 10. RUNNINGROUTINE - HERENCIA
 // ======================================================
 
-const running = new RunningRoutine(
+const running = RunningRoutine.daily(
     'Running por intervalos',
     3,
     5,
     60,
-    new LogTracker(),
     6,
-    '5:00'
+    '5:00',
+    new LogTracker()
 );
 
 assert(
@@ -1214,14 +1542,14 @@ assert(
 // 25. COMPROBAR NUEVA INTERPRETACIÓN DE INTERVALOS
 // ======================================================
 
-const intervalRoutine = new RunningRoutine(
+const intervalRoutine = RunningRoutine.daily(
     'Intervalos 6K',
     3,
     5,
     60,
-    new LogTracker(),
     6,
-    '5:00'
+    '5:00',
+    new LogTracker()
 );
 
 assert(
@@ -1236,12 +1564,605 @@ assert(
 
 
 // ======================================================
-// RESULTADO FINAL
+// 26. CALCULADORAS DE RACHAS
 // ======================================================
+
+const dailyCalculator = new DailyStreakCalculator();
+const weeklyCalculator = new WeeklyStreakCalculator();
+
+const today = '2026-10-10';
+
+// La clase base no puede instanciarse directamente
+let baseCalculatorRejected = false;
+
+try {
+    new StreakCalculator();
+} catch (error) {
+    baseCalculatorRejected = true;
+}
+
+assert(
+    baseCalculatorRejected,
+    'StreakCalculator rechaza instancias directas'
+);
+
+// Lista vacía
+assert(
+    dailyCalculator.calculate(null, [], today) === 0,
+    'La calculadora diaria devuelve 0 sin registros'
+);
+
+assert(
+    weeklyCalculator.calculate(null, [], today) === 0,
+    'La calculadora semanal devuelve 0 sin registros'
+);
+
+// Fechas desordenadas: 8, 9 y 10 de octubre
+const unorderedLogs = [
+    '2026-10-08',
+    '2026-10-10',
+    '2026-10-09'
+];
+
+assert(
+    dailyCalculator.calculate(null, unorderedLogs, today) === 3,
+    'La calculadora diaria ordena las fechas correctamente'
+);
+
+// Duplicado: el mismo día no aumenta la racha
+const duplicatedLogs = [
+    '2026-10-10',
+    '2026-10-10',
+    '2026-10-09'
+];
+
+assert(
+    dailyCalculator.calculate(null, duplicatedLogs, today) === 2,
+    'La calculadora diaria ignora fechas duplicadas'
+);
+
+// Hueco diario: falta el 9 de octubre
+const dailyGapLogs = [
+    '2026-10-10',
+    '2026-10-08'
+];
+
+assert(
+    dailyCalculator.calculate(null, dailyGapLogs, today) === 1,
+    'La calculadora diaria detiene la racha ante un hueco'
+);
+
+// La lista original no debe modificarse
+const originalLogs = [
+    '2026-10-08',
+    '2026-10-10',
+    '2026-10-09'
+];
+
+const originalLogsCopy = [...originalLogs];
+
+dailyCalculator.calculate(null, originalLogs, today);
+
+assert(
+    JSON.stringify(originalLogs) === JSON.stringify(originalLogsCopy),
+    'La calculadora diaria no modifica la lista recibida'
+);
+
+// Varias fechas dentro de la misma semana ISO cuentan como una sola semana
+const sameWeekLogs = [
+    '2026-10-05',
+    '2026-10-07',
+    '2026-10-10',
+    '2026-10-10'
+];
+
+assert(
+    weeklyCalculator.calculate(null, sameWeekLogs, today) === 1,
+    'La calculadora semanal cuenta una semana una sola vez'
+);
+
+// Tres semanas consecutivas: semanas 41, 40 y 39
+const consecutiveWeekLogs = [
+    '2026-10-10',
+    '2026-10-01',
+    '2026-09-25'
+];
+
+assert(
+    weeklyCalculator.calculate(null, consecutiveWeekLogs, today) === 3,
+    'La calculadora semanal cuenta semanas consecutivas'
+);
+
+// Hueco semanal: falta la semana del 28 de septiembre al 4 de octubre
+const weeklyGapLogs = [
+    '2026-10-10',
+    '2026-09-25'
+];
+
+assert(
+    weeklyCalculator.calculate(null, weeklyGapLogs, today) === 1,
+    'La calculadora semanal detiene la racha ante un hueco'
+);
+
+// La lista original tampoco debe modificarse en la calculadora semanal
+const weeklyOriginalLogs = [
+    '2026-09-25',
+    '2026-10-10',
+    '2026-10-01'
+];
+
+const weeklyOriginalLogsCopy = [...weeklyOriginalLogs];
+
+weeklyCalculator.calculate(null, weeklyOriginalLogs, today);
+
+assert(
+    JSON.stringify(weeklyOriginalLogs) === JSON.stringify(weeklyOriginalLogsCopy),
+    'La calculadora semanal no modifica la lista recibida'
+);
+
+// Polimorfismo: ambas responden al mismo método
+const calculators = [
+    dailyCalculator,
+    weeklyCalculator
+];
+
+assert(
+    calculators.every((calculator) => typeof calculator.calculate === 'function'),
+    'Las calculadoras comparten el mismo contrato público'
+);
+
+// ======================================================
+// 27. CASOS DE FECHAS SEMANALES Y CAMBIO DE AÑO
+// ======================================================
+
+// Caso límite: today es lunes
+const mondayLogs = [
+    '2026-10-12'
+];
+
+assert(
+    weeklyCalculator.calculate(null, mondayLogs, '2026-10-12') === 1,
+    'La calculadora semanal cuenta correctamente un lunes'
+);
+
+// Cruce de año ISO: semana 53 de 2026 y semana 1 de 2027
+const newYearLogs = [
+    '2026-12-28',
+    '2027-01-04'
+];
+
+assert(
+    weeklyCalculator.calculate(null, newYearLogs, '2027-01-04') === 2,
+    'La calculadora semanal cruza correctamente de la semana 53 a la semana 1'
+);
+
+// La misma semana no aumenta la racha
+const repeatedWeekLogs = [
+    '2027-01-04',
+    '2027-01-06',
+    '2027-01-10'
+];
+
+assert(
+    weeklyCalculator.calculate(null, repeatedWeekLogs, '2027-01-10') === 1,
+    'Varios registros de una misma semana cuentan como una sola semana'
+);
+
+// Ayer y anteayer: debe conservar la racha
+const yesterdayAndBeforeLogs = [
+    '2026-10-09',
+    '2026-10-08'
+];
+
+assert(
+    dailyCalculator.calculate(
+        null,
+        yesterdayAndBeforeLogs,
+        '2026-10-10'
+    ) === 2,
+    'La calculadora diaria conserva la racha si hoy todavía no hay registro'
+);
+
+// Si falta hoy y también ayer, la racha se pierde
+const oldDailyLogs = [
+    '2026-10-08'
+];
+
+assert(
+    dailyCalculator.calculate(
+        null,
+        oldDailyLogs,
+        '2026-10-10'
+    ) === 0,
+    'La calculadora diaria devuelve 0 después de un día completo sin entrenar'
+);
+
+// Semana anterior: debe conservar la racha
+const previousWeekLogs = [
+    '2026-10-05',
+    '2026-10-07'
+];
+
+assert(
+    weeklyCalculator.calculate(
+        null,
+        previousWeekLogs,
+        '2026-10-15'
+    ) === 1,
+    'La calculadora semanal conserva la racha de la semana anterior'
+);
+
+// Dos semanas atrás: la semana anterior completa sin registros rompe la racha
+const oldWeeklyLogs = [
+    '2026-09-28'
+];
+
+assert(
+    weeklyCalculator.calculate(
+        null,
+        oldWeeklyLogs,
+        '2026-10-15'
+    ) === 0,
+    'La calculadora semanal devuelve 0 después de una semana completa sin entrenar'
+);
+
+// ======================================================
+// 28. ROUTINE + CALCULADORAS DE RACHAS
+// ======================================================
+
+const dailyRoutineLogs = new LogTracker();
+
+dailyRoutineLogs.addLog('2026-10-08');
+dailyRoutineLogs.addLog('2026-10-09');
+dailyRoutineLogs.addLog('2026-10-10');
+
+const dailyRoutine = Routine.daily(
+    'Rutina diaria',
+    2,
+    10,
+    30,
+    dailyRoutineLogs
+);
+
+const weeklyRoutine = Routine.weekly(
+    'Rutina semanal',
+    2,
+    10,
+    30,
+    dailyRoutineLogs
+);
+
+assert(
+    dailyRoutine.frequency === 'daily',
+    'Routine guarda la frecuencia diaria'
+);
+
+assert(
+    weeklyRoutine.frequency === 'weekly',
+    'Routine guarda la frecuencia semanal'
+);
+
+assert(
+    dailyRoutine.calculateStreak('2026-10-10') === 3,
+    'Routine diaria delega el cálculo de la racha'
+);
+
+assert(
+    weeklyRoutine.calculateStreak('2026-10-10') === 1,
+    'Routine semanal delega el cálculo de la racha'
+);
+
+// Frecuencia inválida
+let invalidFrequencyRejected = false;
+
+try {
+    dailyRoutine.frequency = 'monthly';
+} catch (error) {
+    invalidFrequencyRejected = true;
+}
+
+assert(
+    invalidFrequencyRejected,
+    'Routine rechaza una frecuencia inválida'
+);
+
+// RunningRoutine hereda calculateStreak
+const runningRoutineLogs = new LogTracker();
+
+runningRoutineLogs.addLog('2026-10-08');
+runningRoutineLogs.addLog('2026-10-09');
+runningRoutineLogs.addLog('2026-10-10');
+
+const runningStreakRoutine = RunningRoutine.daily(
+    'Running con racha',
+    3,
+    5,
+    30,
+    5,
+    '5:00',
+    runningRoutineLogs
+);
+
+assert(
+    runningStreakRoutine.calculateStreak('2026-10-10') === 3,
+    'RunningRoutine calcula la racha mediante herencia'
+);
+
+// Routine usa la fecha local actual cuando no se proporciona today
+const currentDate = new Date();
+
+const todayString = [
+    currentDate.getFullYear(),
+    String(currentDate.getMonth() + 1).padStart(2, '0'),
+    String(currentDate.getDate()).padStart(2, '0')
+].join('-');
+
+const routineWithoutToday = Routine.daily(
+    'Rutina sin fecha',
+    2,
+    10,
+    30
+);
+
+routineWithoutToday.logWorkout(todayString);
+
+assert(
+    routineWithoutToday.calculateStreak() === 1,
+    'Routine usa la fecha local actual cuando no se proporciona today'
+);
+
+// ======================================================
+// 29. FACTORÍAS ESTÁTICAS
+// ======================================================
+
+let invalidFactoryRejected = false;
+
+try {
+    Routine.daily(
+        'A',
+        2,
+        10,
+        30
+    );
+} catch (error) {
+    invalidFactoryRejected =
+        error.message === ROUTINE_VALIDATION.name.errorMessage;
+}
+
+assert(
+    invalidFactoryRejected,
+    'Una factoría conserva las validaciones de Routine'
+);
+
+// El error de la factoría no debe dejar abierto el candado
+let directAfterFactoryErrorRejected = false;
+
+try {
+    new Routine('Creación directa posterior', 2, 10, 30);
+} catch (error) {
+    directAfterFactoryErrorRejected =
+        error.message.includes('factoria');
+}
+
+assert(
+    directAfterFactoryErrorRejected,
+    'Una creación directa sigue rechazada después de un error de factoría'
+);
+
+const factoryDailyRoutine = Routine.daily(
+    'Rutina factory diaria',
+    2,
+    10,
+    30
+);
+
+const factoryWeeklyRoutine = Routine.weekly(
+    'Rutina factory semanal',
+    2,
+    10,
+    30
+);
+
+const factoryDailyRunningRoutine = RunningRoutine.daily(
+    'Running factory diario',
+    3,
+    5,
+    30,
+    5,
+    '5:00'
+);
+
+const factoryWeeklyRunningRoutine = RunningRoutine.weekly(
+    'Running factory semanal',
+    3,
+    5,
+    30,
+    5,
+    '5:00'
+);
+
+assert(
+    factoryDailyRoutine instanceof Routine &&
+        factoryDailyRoutine.frequency === 'daily',
+    'Routine.daily crea una rutina diaria'
+);
+
+assert(
+    factoryWeeklyRoutine instanceof Routine &&
+        factoryWeeklyRoutine.frequency === 'weekly',
+    'Routine.weekly crea una rutina semanal'
+);
+
+assert(
+    factoryDailyRunningRoutine instanceof RunningRoutine &&
+        factoryDailyRunningRoutine.frequency === 'daily',
+    'RunningRoutine.daily crea una rutina diaria de running'
+);
+
+assert(
+    factoryWeeklyRunningRoutine instanceof RunningRoutine &&
+        factoryWeeklyRunningRoutine.frequency === 'weekly',
+    'RunningRoutine.weekly crea una rutina semanal de running'
+);
+
+let directRoutineRejected = false;
+
+try {
+    new Routine('Creación directa', 2, 10, 30);
+} catch (error) {
+    directRoutineRejected = error.message.includes('factoria');
+}
+
+assert(
+    directRoutineRejected,
+    'Routine rechaza la creación directa y exige una factoría'
+);
+
+let directRunningRoutineRejected = false;
+
+try {
+    new RunningRoutine(
+        'Running directo',
+        3,
+        5,
+        30,
+        new LogTracker(),
+        5,
+        '5:00'
+    );
+} catch (error) {
+    directRunningRoutineRejected = error.message.includes('factoria');
+}
+
+assert(
+    directRunningRoutineRejected,
+    'RunningRoutine rechaza la creación directa y exige una factoría'
+);
+
+const firstIndependentRoutine = Routine.daily(
+    'Primera rutina independiente',
+    2,
+    10,
+    30
+);
+
+const secondIndependentRoutine = Routine.daily(
+    'Segunda rutina independiente',
+    2,
+    10,
+    30
+);
+
+firstIndependentRoutine.logWorkout('2026-10-10');
+
+assert(
+    firstIndependentRoutine.getLogs().length === 1 &&
+        secondIndependentRoutine.getLogs().length === 0,
+    'Las rutinas creadas por factoría no comparten LogTracker'
+);
+
+// ======================================================
+// 30. ERRORES DE DOMINIO
+// ======================================================
+
+expectDomainError(
+    () => Routine.daily('A', 2, 10, 30),
+    'ROUTINE_NAME_INVALID',
+    ROUTINE_VALIDATION.name.errorMessage,
+    'Nombre inválido'
+);
+
+expectDomainError(
+    () => Routine.daily('Rutina válida', 1, 10, 30),
+    'ROUTINE_SERIES_OUT_OF_RANGE',
+    ROUTINE_VALIDATION.series.errorMessage,
+    'Series inválidas'
+);
+
+expectDomainError(
+    () => Routine.daily('Rutina válida', 2, 4, 30),
+    'ROUTINE_REPETITIONS_OUT_OF_RANGE',
+    ROUTINE_VALIDATION.repetitionsPerSet.errorMessage,
+    'Repeticiones inválidas'
+);
+
+expectDomainError(
+    () => Routine.daily('Rutina válida', 2, 10, 29),
+    'ROUTINE_REST_OUT_OF_RANGE',
+    ROUTINE_VALIDATION.rest.errorMessage,
+    'Descanso inválido'
+);
+
+expectDomainError(
+    () => {
+        const routineWithInvalidFrequency = Routine.daily(
+            'Rutina válida',
+            2,
+            10,
+            30
+        );
+
+        routineWithInvalidFrequency.frequency = 'monthly';
+    },
+    'ROUTINE_FREQUENCY_INVALID',
+    'La frecuencia debe ser "daily" o "weekly".',
+    'Frecuencia inválida'
+);
+
+expectDomainError(
+    () => RunningRoutine.daily(
+        'Running válido',
+        3,
+        5,
+        30,
+        0,
+        '5:00'
+    ),
+    'RUNNING_KILOMETERS_INVALID',
+    'El objetivo de los kilometros debe de ser un número positivo',
+    'Kilómetros inválidos'
+);
+
+expectDomainError(
+    () => RunningRoutine.daily(
+        'Running válido',
+        3,
+        5,
+        30,
+        5,
+        'ritmo inválido'
+    ),
+    'RUNNING_PACE_INVALID',
+    'El formato para pasar el ritmo es mm:ss',
+    'Ritmo inválido'
+);
+
+expectDomainError(
+    () => new Routine('Creación directa', 2, 10, 30),
+    'ROUTINE_FACTORY_REQUIRED',
+    'Debe usarse una factoria',
+    'Creación directa'
+);
+
+const invalidRoutineResult = addRoutine(
+    'Rutina válida',
+    1,
+    10,
+    30
+);
+
+assert(
+    invalidRoutineResult === null,
+    'addRoutine devuelve null ante un error de dominio'
+);
+
+assert(
+    document.getElementById('messageBox').textContent ===
+        ROUTINE_VALIDATION.series.errorMessage,
+    'addRoutine muestra el mensaje del error de dominio'
+);
 
 console.log('');
 console.log('========================================================');
-console.log('✅ TODAS LAS PRUEBAS ACTUALIZADAS DE LA ETAPA 3 PASARON');
+console.log('✅ TODAS LAS PRUEBAS DE LA ETAPA 4 PASARON');
 console.log('========================================================');
-
-document.addEventListener('DOMContentLoaded', initApp);
