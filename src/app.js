@@ -190,6 +190,10 @@ class Routine {
         this.#frequency = value;
     }
 
+    get createdAt() {
+        return this.#createdAt;
+    }
+
     rename(newName) {
 
         this.name = newName;
@@ -2166,3 +2170,70 @@ console.log('');
 console.log('========================================================');
 console.log('✅ TODAS LAS PRUEBAS DE LA ETAPA 4 PASARON');
 console.log('========================================================');
+
+// ======================================================
+// 31. ROUTINE - CREATEDAT
+// ======================================================
+
+const createdAtBefore = Date.now();
+
+const createdAtRoutine = Routine.daily(
+    'Rutina con fecha de creación',
+    2,
+    10,
+    30
+);
+
+const createdAtAfter = Date.now();
+const firstCreatedAt = createdAtRoutine.createdAt;
+const secondCreatedAt = createdAtRoutine.createdAt;
+const parsedCreatedAt = new Date(firstCreatedAt);
+
+assert(
+    typeof firstCreatedAt === 'string' &&
+        firstCreatedAt !== undefined,
+    'Routine.createdAt devuelve un string'
+);
+
+assert(
+    !Number.isNaN(parsedCreatedAt.getTime()) &&
+        parsedCreatedAt.toISOString() === firstCreatedAt &&
+        parsedCreatedAt.getTime() >= createdAtBefore &&
+        parsedCreatedAt.getTime() <= createdAtAfter,
+    'Routine.createdAt es una fecha ISO válida y cercana al momento actual'
+);
+
+assert(
+    firstCreatedAt === secondCreatedAt,
+    'Dos lecturas de Routine.createdAt devuelven el mismo valor'
+);
+
+try {
+    createdAtRoutine.createdAt = '2000-01-01T00:00:00.000Z';
+} catch (error) {
+    assert(
+        error instanceof TypeError,
+        'Asignar Routine.createdAt puede rechazar el cambio con TypeError'
+    );
+}
+
+assert(
+    createdAtRoutine.createdAt === firstCreatedAt,
+    'Routine.createdAt no permite modificar su valor'
+);
+
+// RunningRoutine hereda el getter createdAt
+const runningCreatedAtRoutine = RunningRoutine.daily(
+    'Running con fecha de creación',
+    3,
+    5,
+    30,
+    5,
+    '5:00'
+);
+
+assert(
+    typeof runningCreatedAtRoutine.createdAt === 'string' &&
+        !Number.isNaN(new Date(runningCreatedAtRoutine.createdAt).getTime()),
+    'RunningRoutine hereda el getter createdAt'
+);
